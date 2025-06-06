@@ -32,8 +32,7 @@ else:
 K_REPO = "https://github.com/kubernetes/kubernetes.git"
 K_BRANCH = "master"
 REL_PATH_FEATURE_LIST = (
-        "blob/master/test/compatibility_lifecycle/reference/"
-        "versioned_feature_list.yaml"
+        "test/compatibility_lifecycle/reference/versioned_feature_list.yaml"
 )
 
 @dataclass
@@ -44,7 +43,6 @@ class FeatureGate:
 def clone_kubernetes() -> str:
     """Clones the kubernetes/kubernetes repo to tmp/."""
     try:
-        print("Making temp work_dir")
         work_dir = tempfile.mkdtemp(
             dir='/tmp' if platform.system() == 'Darwin' else tempfile.gettempdir()
     )
@@ -61,7 +59,6 @@ def clone_kubernetes() -> str:
     cmd = "git clone --depth=1 -b {0} {1}".format(K_BRANCH, K_REPO)
     res = subprocess.call(cmd, shell=True)
     if res != 0:
-        shutil.rmtree(work_dir)
         print("[Error] Failed cloning kubernetes/kubernetes")
         raise RuntimeError
 
@@ -72,9 +69,9 @@ def parse_feature_gates(k_root: str):
     """Given the path to the kubernetes dir, parses the feature gates."""
     with open(os.path.join(k_root, REL_PATH_FEATURE_LIST), 'r') as f:   
         print("Opened the file all good")
-        yaml.full_load(f)
+        fg_yaml = yaml.full_load(f)
 
-        print(f)
+        print(fg_yaml)
 
 def main():
     if len(error_msgs):
@@ -84,12 +81,14 @@ def main():
 
     try:
         tmpdir = clone_kubernetes()
-        print(tmpdir)
-        parse_feature_gates(os.path.join(tmpdir, "/kubernetes"))
+        parse_feature_gates(os.path.join(tmpdir, "kubernetes"))
 
         print("Work done, deleting kubernetes repo")
-        shutil.rmtree(k_repo)
+        shutil.rmtree(tmpdir)
     except Exception as err:
+        if os.path.exists(tmpdir):
+            shutil.rmtree(tmpdir)
+
         print("Unexpected error: {}".format(err))
         return 1
 

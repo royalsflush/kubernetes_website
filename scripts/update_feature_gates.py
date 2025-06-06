@@ -9,8 +9,7 @@ import platform
 import typing
 import shutil
 import subprocess
-
-from dataclasses import dataclass
+import dataclasses
 
 
 error_msgs: [str] = []
@@ -35,9 +34,19 @@ REL_PATH_FEATURE_LIST = (
         "test/compatibility_lifecycle/reference/versioned_feature_list.yaml"
 )
 
-@dataclass
+
+@dataclasses.dataclass
+class VersionedSpec:
+    default: bool
+    lock_to_default: bool
+    pre_release: str
+    version: str
+
+
+@dataclasses.dataclass
 class FeatureGate:
-    pass
+    name: str
+    versioned_specs: [VersionedSpec] = dataclasses.field(default_factory=list)
 
 
 def clone_kubernetes() -> str:
@@ -65,13 +74,30 @@ def clone_kubernetes() -> str:
     return work_dir
 
 
-def parse_feature_gates(k_root: str):
+def parse_feature_gates(k_root: str) -> [FeatureGate]:
     """Given the path to the kubernetes dir, parses the feature gates."""
     with open(os.path.join(k_root, REL_PATH_FEATURE_LIST), 'r') as f:   
-        print("Opened the file all good")
         fg_yaml = yaml.full_load(f)
+        fgs = []
 
-        print(fg_yaml)
+        for entry in fg_yaml:
+            fg = FeatureGate(entry['name'])
+
+            for specs_entry in entry['versionedSpecs']:
+                vs = VersionedSpec(
+                        specs_entry['default'],
+                        specs_entry['lockToDefault'],
+                        specs_entry['preRelease'],
+                        specs_entry['version']
+                )
+                fg.versioned_specs += [vs]
+                pass
+
+            fgs += [fg]
+
+        print(fgs)
+        return fgs
+
 
 def main():
     if len(error_msgs):

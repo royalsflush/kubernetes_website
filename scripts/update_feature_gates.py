@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 ##
 # This script has been tested with python 3.11
+#
+# Usage:
+# python3 
 
 import sys
 import tempfile
@@ -44,9 +47,40 @@ class VersionedSpec:
 
 
 @dataclasses.dataclass
-class FeatureGate:
+class YamlFeatureGate:
     name: str
     versioned_specs: [VersionedSpec] = dataclasses.field(default_factory=list)
+
+    def __init__(self, yaml_entry: dict[str, dict[str, any]]):
+        self.name = yaml_entry['name']
+        self.versioned_specs = []
+
+        for specs_entry in yaml_entry['versionedSpecs']:
+            vs = VersionedSpec(
+                    specs_entry['default'],
+                    specs_entry['lockToDefault'],
+                    specs_entry['preRelease'],
+                    specs_entry['version']
+            )
+            self.versioned_specs += [vs]
+
+
+    def convertToSite(self):
+        pass
+
+
+@dataclasses.dataclass
+class Stages: 
+    stage: str
+    default_value: bool
+    from_version: str
+    to_version: str
+
+
+@dataclasses.dataclass
+class SiteFeatureGate:
+    name: str
+
 
 
 def clone_kubernetes() -> str:
@@ -74,29 +108,18 @@ def clone_kubernetes() -> str:
     return work_dir
 
 
-def parse_feature_gates(k_root: str) -> [FeatureGate]:
+def parse_yaml_feature_gates(k_root: str) -> [YamlFeatureGate]:
     """Given the path to the kubernetes dir, parses the feature gates."""
     with open(os.path.join(k_root, REL_PATH_FEATURE_LIST), 'r') as f:   
         fg_yaml = yaml.full_load(f)
         fgs = []
 
         for entry in fg_yaml:
-            fg = FeatureGate(entry['name'])
-
-            for specs_entry in entry['versionedSpecs']:
-                vs = VersionedSpec(
-                        specs_entry['default'],
-                        specs_entry['lockToDefault'],
-                        specs_entry['preRelease'],
-                        specs_entry['version']
-                )
-                fg.versioned_specs += [vs]
-                pass
-
-            fgs += [fg]
+            fgs += [YamlFeatureGate(entry)]
 
         print(fgs)
         return fgs
+
 
 
 def main():
@@ -107,16 +130,16 @@ def main():
 
     try:
         tmpdir = clone_kubernetes()
-        parse_feature_gates(os.path.join(tmpdir, "kubernetes"))
+        fgs = parse_yaml_feature_gates(os.path.join(tmpdir, "kubernetes"))
 
         print("Work done, deleting kubernetes repo")
         shutil.rmtree(tmpdir)
     except Exception as err:
-        if os.path.exists(tmpdir):
-            shutil.rmtree(tmpdir)
-
         print("Unexpected error: {}".format(err))
         return 1
+    finally:
+        if os.path.exists(tmpdir):
+            shutil.rmtree(tmpdir)
 
     return 0
 

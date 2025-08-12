@@ -5,6 +5,7 @@
 # Usage:
 # python3 
 
+import argparse
 import sys
 import tempfile
 import os
@@ -13,6 +14,9 @@ import typing
 import shutil
 import subprocess
 import dataclasses
+import pathlib
+import itertools
+import typing
 
 
 error_msgs: [str] = []
@@ -36,7 +40,9 @@ K_BRANCH = "master"
 REL_PATH_FEATURE_LIST = (
         "test/compatibility_lifecycle/reference/versioned_feature_list.yaml"
 )
-
+REL_PATH_FEATURE_DOC_DIR = (
+        "content/en/docs/reference/command-line-tools-reference/feature-gates/"
+)
 
 @dataclasses.dataclass
 class VersionedSpec:
@@ -76,14 +82,27 @@ class Stages:
     from_version: str
     to_version: str
 
+SFG = typing.TypeVar('SFG', bound='SiteFeatureGate')
 
 @dataclasses.dataclass
 class SiteFeatureGate:
-    name: str
+    filename: str
+    header: str
+    footer: str
+
+    @classmethod
+    def from_file(cls, file: typing.TextIO, verbose: True) -> SFG:
+        return cls(header="", footer="", filename="")
+
+    @classmethod
+    def from_yaml_feature_gate(cls, yaml_fg: YamlFeatureGate) -> SFG:
+        return cls()
+
+    def render_markdown(self):
+        pass
 
 
-
-def clone_kubernetes() -> str:
+def clone_kubernetes(verbose: bool) -> str:
     """Clones the kubernetes/kubernetes repo to tmp/."""
     try:
         work_dir = tempfile.mkdtemp(
@@ -97,10 +116,15 @@ def clone_kubernetes() -> str:
     print("Working dir {}".format(work_dir))
     
     os.chdir(work_dir)
+
     print("Cloning repo...")
 
     cmd = "git clone --depth=1 -b {0} {1}".format(K_BRANCH, K_REPO)
-    res = subprocess.call(cmd, shell=True)
+    res = subprocess.call(
+            cmd, shell=True,
+            stdout=None if verbose else subprocess.DEVNULL,
+            stderr=None if verbose else subprocess.DEVNULL)
+
     if res != 0:
         print("[Error] Failed cloning kubernetes/kubernetes")
         raise RuntimeError
@@ -108,7 +132,7 @@ def clone_kubernetes() -> str:
     return work_dir
 
 
-def parse_yaml_feature_gates(k_root: str) -> [YamlFeatureGate]:
+def parse_yaml_feature_gates(k_root: str, verbose: bool) -> [YamlFeatureGate]:
     """Given the path to the kubernetes dir, parses the feature gates."""
     with open(os.path.join(k_root, REL_PATH_FEATURE_LIST), 'r') as f:   
         fg_yaml = yaml.full_load(f)
@@ -117,9 +141,22 @@ def parse_yaml_feature_gates(k_root: str) -> [YamlFeatureGate]:
         for entry in fg_yaml:
             fgs += [YamlFeatureGate(entry)]
 
-        print(fgs)
         return fgs
 
+
+def parse_site_feature_gates(
+        website_root: str, verbose: bool) -> [SiteFeatureGate]:
+    """Parse feature gates from the website documentation.
+
+    Given the path to the root of the website repo, parses the feature gates
+    from the English version of the documentation."""
+    fgs = []
+
+    for l in os.listdir(os.path.join(website_root, REL_PATH_FEATURE_DOC_DIR)):
+        with open(os.path.join(website_root, REL_PATH_FEATURE_DOC_DIR, l)) as f:
+            fgs += [SiteFeatureGate.from_file(f, verbose)]
+
+    return fgs
 
 
 def main():
@@ -128,9 +165,22 @@ def main():
             print("[Error] {}".format(msg))
         return 1
 
+    parser = argparse.ArgumentParser(
+            prog='Update Feature Gates',
+            description='Updates the feature gates documentation')
+    parser.add_argument('--dry_run', type=bool, default=False)
+    parser.add_argument('-v', '--verbose', type=bool, default=False)
+    args = parser.parse_args()
+    print(args.verbose)
+
     try:
-        tmpdir = clone_kubernetes()
-        fgs = parse_yaml_feature_gates(os.path.join(tmpdir, "kubernetes"))
+        tmpdir = clone_kubernetes(args.verbose)
+        yaml_fgs = parse_yaml_feature_gates(
+                os.path.join(tmpdir, "kubernetes"), args.verbose)
+
+        script_path = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
+        site_fgs = parse_site_feature_gates(
+                script_path.parent.absolute(), args.verbose)
 
         print("Work done, deleting kubernetes repo")
         shutil.rmtree(tmpdir)

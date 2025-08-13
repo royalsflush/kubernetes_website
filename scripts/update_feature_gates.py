@@ -138,8 +138,13 @@ def parse_yaml_feature_gates(k_root: str, verbose: bool) -> [YamlFeatureGate]:
         fg_yaml = yaml.full_load(f)
         fgs = []
 
+        if verbose:
+            print("Parsed from versioned_feature_list.yaml:\n")
+
         for entry in fg_yaml:
-            fgs += [YamlFeatureGate(entry)]
+            fg = YamlFeatureGate(entry)
+            print(fg.name) if verbose else None
+            fgs += [fg]
 
         return fgs
 
@@ -168,10 +173,9 @@ def main():
     parser = argparse.ArgumentParser(
             prog='Update Feature Gates',
             description='Updates the feature gates documentation')
-    parser.add_argument('--dry_run', type=bool, default=False)
-    parser.add_argument('-v', '--verbose', type=bool, default=False)
+    parser.add_argument('--dry_run', action='store_true')
+    parser.add_argument('-v', '--verbose', action='store_true')
     args = parser.parse_args()
-    print(args.verbose)
 
     try:
         tmpdir = clone_kubernetes(args.verbose)

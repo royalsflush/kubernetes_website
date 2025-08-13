@@ -76,30 +76,24 @@ class YamlFeatureGate:
 
 
 @dataclasses.dataclass
-class Stages: 
-    stage: str
-    default_value: bool
-    from_version: str
-    to_version: str
-
-SFG = typing.TypeVar('SFG', bound='SiteFeatureGate')
-
-@dataclasses.dataclass
 class SiteFeatureGate:
-    filename: str
-    header: str
-    footer: str
+    metadata: str
+    description: str
 
-    @classmethod
-    def from_file(cls, file: typing.TextIO, verbose: True) -> SFG:
-        return cls(header="", footer="", filename="")
+    def __init__(self, metadata: dict[str, dict[str, any]], description: str):
+        self.metadata = metadata
+        self.description = description
 
-    @classmethod
-    def from_yaml_feature_gate(cls, yaml_fg: YamlFeatureGate) -> SFG:
+    def modify_metadata(self, yaml_fg: YamlFeatureGate) -> None:
         return cls()
 
-    def render_markdown(self):
-        pass
+    def render_to_dir(self, target_dir: str):
+        print(yaml.dump(self.metadata,
+                        sort_keys=False,
+                        explicit_start=True,
+                        explicit_end=False), end='')
+        print('---', end='')
+        print(self.description)
 
 
 def clone_kubernetes(verbose: bool) -> str:
@@ -159,11 +153,21 @@ def parse_site_feature_gates(
 
     for l in os.listdir(os.path.join(website_root, REL_PATH_FEATURE_DOC_DIR)):
         with open(os.path.join(website_root, REL_PATH_FEATURE_DOC_DIR, l)) as f:
-            fgs += [SiteFeatureGate.from_file(f, verbose)]
+            parts = f.read().split('---', 2)
+            metadata = yaml.full_load(parts[1])
+            description = parts[2]
+
+            fgs += [SiteFeatureGate(metadata, description)]
 
     return fgs
 
 
+def update_feature_gates(yaml_fgs: [YamlFeatureGate],
+                         site_fgs: [SiteFeatureGate]) -> [SiteFeatureGate]:
+    """Returns the updated list of site feature gates."""
+    return site_fgs
+
+   
 def main():
     if len(error_msgs):
         for msg in error_msgs:
@@ -185,6 +189,10 @@ def main():
         script_path = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
         site_fgs = parse_site_feature_gates(
                 script_path.parent.absolute(), args.verbose)
+
+        site_fgs = update_feature_gates(yaml_fgs, site_fgs)
+        for fg in site_fgs:
+            fg.render_to_dir("")
 
         print("Work done, deleting kubernetes repo")
         shutil.rmtree(tmpdir)

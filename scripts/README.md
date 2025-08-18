@@ -13,7 +13,7 @@
 | `replace-capture.sh`      | This script sets K8S_WEBSITE in your env to your docs website root or rely on this script to determine it automatically               |
 | `check-ctrlcode.py`       | This script finds control-code(0x00-0x1f) in text files.                                                                              |
 | `ja/verify-spelling.sh`   | This script finds Japanese words that are against the guideline.                                                                      |
-| `update_feature_gates.sh` | Updates the feature gates documentation to match the current state in kubernetes/kubernetes.                                         |
+| `update-feature-gates.py` | Updates the feature gates documentation to match the current state in kubernetes/kubernetes.                                          |
 
 
 
@@ -197,14 +197,6 @@ This script finds Japanese words that are against the guideline[1]
 Usage: ./ja/verify-spelling.sh
 ```
 
-## update_feature_gates.sh
+## update-feature-gates.py
 
-This script will fetch the last feature list from kubernetes/kubernetes (in
-test/compatibility_lifecycle/reference/versioned_feature_list.yaml from the 
-master branch) and use it to update the website documentation.
-
-Usage:
-
-```
-python3 update_feature_gates.sh
-```
+See README.md in `../update-feature-gates`

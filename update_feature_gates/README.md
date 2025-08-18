@@ -1,4 +1,4 @@
-# update_feature_gates.py
+# update-feature-gates.py
 
 This script will fetch the last feature list from kubernetes/kubernetes (in
 test/compatibility_lifecycle/reference/versioned_feature_list.yaml from the 
@@ -15,5 +15,5 @@ the exact match of the YAML and an empty description.
 Usage:
 
 ```
-python3 update_feature_gates.py
+python3 update-feature-gates.py
 ```

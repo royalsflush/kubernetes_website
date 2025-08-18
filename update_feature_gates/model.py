@@ -17,8 +17,7 @@ class YamlFeatureGate:
 
     @classmethod
     def from_yaml_entry(cls, yaml_entry: dict[str, dict[str, any]]):
-        self.name = yaml_entry['name']
-        self.versioned_specs = []
+        specs = []
 
         for specs_entry in yaml_entry['versionedSpecs']:
             vs = VersionedSpec(
@@ -27,11 +26,9 @@ class YamlFeatureGate:
                     specs_entry['preRelease'],
                     specs_entry['version']
             )
-            self.versioned_specs += [vs]
+            specs += [vs]
 
-
-    def convertToSite(self):
-        pass
+        return cls(name=yaml_entry['name'], versioned_specs=specs)
 
 
 @dataclasses.dataclass
